@@ -447,7 +447,7 @@ if [[ $ping_result == *bytes?from* ]]; then
 	if [[ ! -d /srv/www/wordpress-default ]]; then
 		echo "Downloading WordPress Stable, see http://wordpress.org/"
 		cd /srv/www/
-		curl -O http://wordpress.org/latest.tar.gz
+		curl -L -O http://wordpress.org/latest.tar.gz
 		tar -xvf latest.tar.gz
 		mv wordpress wordpress-default
 		rm latest.tar.gz
@@ -535,6 +535,19 @@ for SITE_CONFIG_FILE in $(find /srv/www -maxdepth 5 -name 'vvv-init.sh'); do
 		cd $DIR
 		bash vvv-init.sh
 	)
+done
+
+# Look for Apache vhost files, symlink them into the custom sites dir
+for SITE_CONFIG_FILE in $(find /srv/www -maxdepth 5 -name 'vvv-apache.conf'); do
+	DEST_CONFIG_FILE=${SITE_CONFIG_FILE//\/srv\/www\//}
+	DEST_CONFIG_FILE=${DEST_CONFIG_FILE//\//\-}
+	DEST_CONFIG_FILE=${DEST_CONFIG_FILE/%-vvv-apache.conf/}
+	DEST_CONFIG_FILE="vvv-auto-$DEST_CONFIG_FILE-$(md5sum <<< $SITE_CONFIG_FILE | cut -c1-32).conf"
+	# We allow the replacement of the {vvv_path_to_folder} token with
+	# whatever you want, allowing flexible placement of the site folder
+	# while still having an Apache config which works.
+	DIR="$(dirname $SITE_CONFIG_FILE)"
+	sed "s#{vvv_path_to_folder}#$DIR#" $SITE_CONFIG_FILE > /etc/apache2/custom-sites/$DEST_CONFIG_FILE
 done
 
 # RESTART SERVICES AGAIN
